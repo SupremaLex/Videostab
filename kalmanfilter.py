@@ -1,8 +1,8 @@
-from numpy import dot, zeros, ones
+from numpy import dot, zeros, ones, array
 from numpy.linalg import inv
 
 
-class KalmanFilter:
+class KalmanFilterND:
 
     def __init__(self, X, F, H, P, Q, R, model='multivariate'):
         self.model = model
@@ -38,8 +38,27 @@ class KalmanFilter:
             # P(k) = (I - K(k)*H) * P(k)    delta update
             self.covariance_P -= dot(K, self.measurement).dot(self.covariance_P)
         else:
+            self.d = d
             self.z += d
             K = self.covariance_P / (self.covariance_P + self.covariance_R)
             self.x += K * (self.z - self.x)
             self.covariance_P *= ones(3) - K
-            self.d = self.x - self.z
+            self.d += self.x - self.z
+
+
+class KalmanFilter1D:
+
+    def __init__(self):
+        self.x = 0            # posteriori state estimate
+        self.covariance_P = 1   # posteriori estimate error covariance
+        self.covariance_Q = 0.001   # process noise covariance
+        self.covariance_R = 0.1**2   # measurement noise covariance
+
+    def predict(self):
+        self.x = self.x
+        self.covariance_P += self.covariance_Q
+
+    def update(self, z):
+        K = self.covariance_P / (self.covariance_P + self.covariance_R)
+        self.x += K * (z - self.x)
+        self.covariance_P *= 1 - K
