@@ -101,7 +101,7 @@ def show(videoname, size=(640, 480), tracking_mode=False):
     cap, nframes, fps, prev = video_open(videoname, size)
     if tracking_mode:
 
-        from curve import tracking
+        from .curve import tracking
 
         @tracking(track_len=10, detect_interval=10)
         def tracked(prev, cur):

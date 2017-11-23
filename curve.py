@@ -3,7 +3,7 @@ import numpy as np
 
 
 # params for Shi-Tomasi corner detection
-feature_params = dict(maxCorners=100,
+feature_params = dict(maxCorners=50,
                       qualityLevel=0.3,
                       minDistance=7,
                       blockSize=7)
@@ -33,7 +33,6 @@ def tracking(track_len=10, detect_interval=5):
 
         def __call__(self, prev, cur):
             prev_grey, cur_grey = self.function(prev, cur)
-            print(prev_grey.shape)
             if len(prev_grey.shape) != 2:
                 prev_grey = cv2.cvtColor(prev_grey, cv2.COLOR_BGR2GRAY)
             if len(cur_grey.shape) != 2:
@@ -81,8 +80,3 @@ def tracking(track_len=10, detect_interval=5):
             return vis
 
     return Curve
-
-
-if __name__ == "__main__":
-    from support_funcs import show
-    show('t1.mp4', tracking_mode=True)
