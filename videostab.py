@@ -10,7 +10,7 @@ vert_border = 10
 horizontal_border = 10
 
 
-def videostab(filename, new_size=(640, 480), tracking_mode=True):
+def video_stab(filename, new_size=(640, 480), tracking_mode=True):
     """
     Simple video live stabilization via recursive Kalman Filter
     :param filename: path to video file
@@ -35,9 +35,9 @@ def videostab(filename, new_size=(640, 480), tracking_mode=True):
     F, H = np.eye(3), np.eye(3)
     X = np.zeros(3)
     P = np.ones(3)
-    Q = np.array([4e-2, 4e-2, 4e-2])*5
-    R = np.array([0.25, 0.25, 0.25])**2
-    kf_3 = KalmanFilterND(X, F, H, P, Q, R, 1)
+    Q = np.diag([4e-3, 4e-3, 4e-3])
+    R = np.diag([0.25, 0.25, 0.25])**2
+    kf_3 = KalmanFilterND(X, F, H, P, Q, R)  # invariate 2 order Kalman Filter
 
     kfs = [KalmanFilter1D(), KalmanFilter1D(), KalmanFilter1D(),
            KalmanFilter1D(), KalmanFilter1D(), KalmanFilter1D()]
@@ -50,6 +50,7 @@ def videostab(filename, new_size=(640, 480), tracking_mode=True):
     cap, n_frames, fps, prev = video_open(filename, new_size)
 
     old, new_6, new_3, new_6_ = [], [], [], []
+    last_affine = ...
     # video writer args
     fourcc = cv2.VideoWriter_fourcc(*'H264')
     fps = cap.get(5)
@@ -82,7 +83,7 @@ def videostab(filename, new_size=(640, 480), tracking_mode=True):
         # get state vector
         x = [k.x for k in kfs]
         X = kf_6.x
-        d = kf_3.d
+        d = kf_3.x
         # create new Affine transform
         new_trans_6_ = np.array(x).reshape(2, 3)
         new_6_.append(new_trans_6_)
@@ -95,9 +96,9 @@ def videostab(filename, new_size=(640, 480), tracking_mode=True):
         cur3 = cv2.warpAffine(prev, new_trans_3, new_size)
         cur4 = cv2.warpAffine(prev, new_trans_6_, new_size)
         # crop borders
-        #cur2 = cut(vert_border, horizontal_border, cur2)
-        #cur3 = cut(vert_border, horizontal_border, cur3)
-        #cur4 = cut(vert_border, horizontal_border, cur4)
+        cur2 = cut(vert_border, horizontal_border, cur2)
+        cur3 = cut(vert_border, horizontal_border, cur3)
+        cur4 = cut(vert_border, horizontal_border, cur4)
         if i > 1 and tracking_mode:
             tr1, tr2, tr3, tr4 = tracked(prev, cur), tracked(prev2, cur2), tracked(prev3, cur3), tracked(prev3, cur4)
         else:
@@ -122,6 +123,5 @@ def videostab(filename, new_size=(640, 480), tracking_mode=True):
     trajectory(new_3, 'b')
     trajectory(new_6_, 'm')
     plt.show()
-    return videostab
 
 
