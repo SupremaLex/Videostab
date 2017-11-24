@@ -149,3 +149,11 @@ def cut(vertical, horizontal, img):
     img = img[vertical: -vertical, horizontal: -horizontal]
     img = cv2.resize(img, size, cv2.INTER_CUBIC)
     return img
+
+
+def covariance(*series):
+    R = np.cov(series)
+    print(R)
+    return R
+
+
