@@ -21,22 +21,34 @@ def video_stab(filename, new_size=(640, 480), tracking_mode=True):
     if tracking_mode:
         from .curve import tracking
 
-        @tracking(track_len=20, detect_interval=10)
+        def decorator(func):
+            funcs = {}
+            for i in range(4):
+                @tracking(track_len=20, detect_interval=10)
+                def f(prev, cur):
+                    return func(prev, cur)
+                funcs[i] = f
+            return funcs
+
+        @decorator
         def tracked(prev, cur):
             return get_grey_images(prev, cur)
+
     print('Video ' + filename + ' processing')
     with open('videostab/covariance.pickle', 'rb') as file:
         R = pickle.load(file)
-    Q, P = np.diag([1e-6, 1e-6, 4e-3, 1e-6, 1e-6, 5e-1]), np.diag([1, 1, 1, 1, 1, 1])
+    Q, P = np.diag([1e-7, 1e-7, 4e-3, 1e-7, 1e-7, 4e-3]), np.diag([1, 1, 1, 1, 1, 1])
     F, H = np.eye(6), np.eye(6)
     X = np.zeros((6, 1))
     kf_6 = KalmanFilterND(X, F, H, P, Q, R)     # multivariate 5 order Kalman Filter
-
+    # Noispection PeP8
     F, H = np.eye(3), np.eye(3)
     X = np.zeros(3)
     P = np.ones(3)
-    Q = np.diag([4e-3, 4e-3, 4e-3])
-    R = np.diag([0.25, 0.25, 0.25])**2
+    Q = np.diag([4e-3, 4e-3, 1e-6])
+    with open('videostab/covariance_3.pickle', 'rb') as file:
+        R = pickle.load(file)
+    #R = np.diag([0.25, 0.25, 0.25])**2
     kf_3 = KalmanFilterND(X, F, H, P, Q, R)  # invariate 2 order Kalman Filter
 
     kfs = [KalmanFilter1D(), KalmanFilter1D(), KalmanFilter1D(),
@@ -100,7 +112,8 @@ def video_stab(filename, new_size=(640, 480), tracking_mode=True):
         cur3 = cut(vert_border, horizontal_border, cur3)
         cur4 = cut(vert_border, horizontal_border, cur4)
         if i > 1 and tracking_mode:
-            tr1, tr2, tr3, tr4 = tracked(prev, cur), tracked(prev2, cur2), tracked(prev3, cur3), tracked(prev3, cur4)
+            tr1, tr2 = tracked[0](prev, cur), tracked[1](prev2, cur2)
+            tr3, tr4 = tracked[2](prev3, cur3), tracked[3](prev4, cur4)
         else:
             tr1, tr2, tr3, tr4 = cur, cur2, cur3, cur4
         # save transforms for analysis
