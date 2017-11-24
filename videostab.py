@@ -1,9 +1,6 @@
-import cv2
-import numpy as np
 import math
-from matplotlib import pyplot as plt
 import pickle
-from .kalmanfilter import KalmanFilterND, KalmanFilter1D
+from .kalmanfilter import KalmanFilter1D, KalmanFilterNDIMM
 from .support_funcs import *
 
 vert_border = 10
@@ -40,16 +37,15 @@ def video_stab(filename, new_size=(640, 480), tracking_mode=True):
     Q, P = np.diag([1e-7, 1e-7, 4e-3, 1e-7, 1e-7, 4e-3]), np.diag([1, 1, 1, 1, 1, 1])
     F, H = np.eye(6), np.eye(6)
     X = np.zeros((6, 1))
-    kf_6 = KalmanFilterND(X, F, H, P, Q, R)     # multivariate 5 order Kalman Filter
-    # Noispection PeP8
+    kf_6 = KalmanFilterNDIMM(X, F, H, P, Q, R)     # 5 order Kalman Filter
+
     F, H = np.eye(3), np.eye(3)
     X = np.zeros(3)
     P = np.ones(3)
     Q = np.diag([4e-3, 4e-3, 1e-6])
     with open('videostab/covariance_3.pickle', 'rb') as file:
         R = pickle.load(file)
-    #R = np.diag([0.25, 0.25, 0.25])**2
-    kf_3 = KalmanFilterND(X, F, H, P, Q, R)  # invariate 2 order Kalman Filter
+    kf_3 = KalmanFilterNDIMM(X, F, H, P, Q, R)  # 2 order Kalman Filter
 
     kfs = [KalmanFilter1D(), KalmanFilter1D(), KalmanFilter1D(),
            KalmanFilter1D(), KalmanFilter1D(), KalmanFilter1D()]
@@ -81,6 +77,7 @@ def video_stab(filename, new_size=(640, 480), tracking_mode=True):
         # save original affine for comparing with stabilized
         old.append(affine)
         # predict new state
+
         kf_6.predict()
         kf_3.predict()
         for k in kfs:
@@ -88,7 +85,9 @@ def video_stab(filename, new_size=(640, 480), tracking_mode=True):
         z = np.array([affine.ravel()]).T    # (a1, a2, b1, a3, a4, b2)^T
         d = affine[0][2], affine[1][2], math.atan2(affine[1][0], affine[0][0])  # (b1, b2, a)
         # update
+        # kf_6.first_error_projection(z)
         kf_6.update(z)
+        # kf_6.second_error_projection()
         kf_3.update(d)
         for p, k in zip(z.tolist(), kfs):
             k.update(p[0])
