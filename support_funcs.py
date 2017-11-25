@@ -25,7 +25,7 @@ def trajectory(trajectory, color='r'):
     Draw plots for all pairs matching params of old and new trajectory, such as old a1 vs new a2 etc.
     :param trajectory: affine transform matrix (2x3 dims)
     :param color: color for plotting
-    :return:
+    :return: None
     """
     number = len(trajectory)
     params = ('a1', 'a2', 'b1', 'a3', 'a4', 'b2')
@@ -33,7 +33,7 @@ def trajectory(trajectory, color='r'):
     frames = range(number)
     for k in trajectories:
         f = plt.figure(k)
-        plt.plot(frames, trajectories[k], figure=f, color=color)
+        p = plt.plot(frames, trajectories[k], figure=f, color=color, label=k)
         plt.xlabel('frame', figure=f)
         plt.ylabel(k, figure=f)
 
@@ -110,7 +110,8 @@ def show(videoname, size=(640, 480), tracking_mode=False):
     for i in range(nframes-2):
         ret, cur = cap.read()
         cur = cv2.resize(cur, size, cv2.INTER_CUBIC)
-        cur = tracked(prev, cur)
+        if tracking_mode:
+            cur = tracked(prev, cur)
         cv2.imshow('show', cur)
         if cv2.waitKey(np.int(1000//fps)) & 0xFF == ord('q'):
             break
@@ -153,7 +154,6 @@ def cut(vertical, horizontal, img):
 
 def covariance(*series):
     R = np.cov(series)
-    print(R)
     return R
 
 
