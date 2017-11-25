@@ -21,7 +21,7 @@ class KalmanFilter1D:
         self.covariance_P *= 1 - K
 
 
-class KalmanFilterNDIMM:
+class KalmanFilterND:
 
     def __init__(self, X, F, H, P, Q, R):
         self.x = X              # posteriori state estimate
@@ -33,28 +33,10 @@ class KalmanFilterNDIMM:
         self.covariance_Q = Q   # process noise covariance
         self.covariance_R = R   # measurement noise covariance
 
-        def f(x):
-            x = x.reshape(self.x.shape)
-            r = dot((x - self.x).T, inv(self.covariance_P)).dot(x - self.x)
-            return r[0]
-        self.f = f
-
     def predict(self):
         self.x = dot(self.transition, self.x)
         # P(k) = F(k) * P(k) * (F(k))^T + Q
         self.covariance_P = dot(self.transition, self.covariance_P).dot(self.transition.T) + self.covariance_Q
-
-    def first_error_projection(self, z):
-
-        self.x = minimize(self.f, self.x).x.reshape(self.x.shape)
-        self.y = z - dot(self.measurement, self.x)
-
-    def second_error_projection(self):
-        def f(x):
-            x = x.reshape(self.x.shape)
-            r = dot((x-self.x).T, inv(self.covariance_P)).dot(x-self.x)
-            return r[0]
-        self.x = minimize(self.f, zeros(self.x.shape)).x.reshape(self.x.shape)
 
     def update(self, z):
         # prediction update
