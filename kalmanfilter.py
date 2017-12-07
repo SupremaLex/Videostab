@@ -1,6 +1,6 @@
+# file kalmanfilter.py
 from numpy import dot, zeros
 from numpy.linalg import inv
-from scipy.optimize import minimize
 
 
 class KalmanFilter1D:
@@ -19,6 +19,11 @@ class KalmanFilter1D:
         K = self.covariance_P / (self.covariance_P + self.covariance_R)
         self.x += K * (z - self.x)
         self.covariance_P *= 1 - K
+
+    def predict_and_update(self, z):
+        self.predict()
+        self.update(z)
+        return self.x
 
 
 class KalmanFilterND:
@@ -50,3 +55,8 @@ class KalmanFilterND:
         self.x += dot(K, y)
         # P(k) = (I - K(k)*H) * P(k)    delta update
         self.covariance_P -= dot(K, self.measurement).dot(self.covariance_P)
+
+    def predict_and_update(self, z):
+        self.predict()
+        self.update(z)
+        return self.x
