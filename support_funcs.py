@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import cv2
 import numpy as np
+import matplotlib.patches as mpatches
 
 
 def get_params_from_trajectory(trajectory):
@@ -31,21 +32,26 @@ def trajectory(trajectory, color='r'):
     params = ('a1', 'a2', 'b1', 'a3', 'a4', 'b2')
     trajectories = dict(zip(params, get_params_from_trajectory(trajectory)))
     frames = range(number)
+    red_patch = mpatches.Patch(color='r', label='original motion')
+    green_patch = mpatches.Patch(color='g', label='affine motion')
+    blue_patch = mpatches.Patch(color='b', label='similarity motion')
+    yellow_patch = mpatches.Patch(color='y', label='translational motion')
     for k in trajectories:
         f = plt.figure(k)
-        p = plt.plot(frames, trajectories[k], figure=f, color=color, label=k)
+        plt.plot(frames, trajectories[k], figure=f, color=color, label=k)
         plt.xlabel('frame', figure=f)
         plt.ylabel(k, figure=f)
+        plt.legend(handles=[red_patch, green_patch, blue_patch, yellow_patch])
 
 
-def rotate_video(videoname, angle):
+def rotate_video(video_name, angle):
     """
     Rotate video by angle (clockwise)
-    :param videoname: path to video file
+    :param video_name: path to video file
     :param angle: angle (clockwise)
-    :return: None, but rotated video is saved as 'videonamerot.mp4'
+    :return: None, but rotated video is saved as 'video_namerot.mp4'
     """
-    file = videoname
+    file = video_name
     cap = cv2.VideoCapture(file)
     nframes = np.int(cap.get(7))
     s1, s2 = np.int(cap.get(3)), np.int(cap.get(4))
@@ -76,13 +82,13 @@ def get_grey_images(img1, img2):
     return img1_grey, img2_grey
 
 
-def video_open(videoname, size=(640, 480)):
+def video_open(video_name, size=(640, 480)):
     """
-    :param videoname: path to video file
+    :param video_name: path to video file
     :param size: new size of video
     :return: VideoCapture object, number of frames, fps, and first frame
     """
-    cap = cv2.VideoCapture(videoname)
+    cap = cv2.VideoCapture(video_name)
     nframes = np.int(cap.get(7))
     fps = cap.get(5)
     ret, prev = cap.read()
@@ -90,20 +96,20 @@ def video_open(videoname, size=(640, 480)):
     return cap, nframes, fps, prev
 
 
-def show(videoname, size=(640, 480), tracking_mode=False):
+def show(video_name, size=(640, 480), tracking_mode=False):
     """
     Just show resized video
-    :param videoname: path to video file
+    :param video_name: path to video file
     :param size: new (width, height) of image
     :param tracking_mode: set True to show tracking  of key points
     :return: None
     """
-    cap, nframes, fps, prev = video_open(videoname, size)
+    cap, nframes, fps, prev = video_open(video_name, size)
     if tracking_mode:
 
         from .curve import tracking
 
-        @tracking(track_len=10, detect_interval=10)
+        @tracking(track_len=20, detect_interval=10)
         def tracked(prev, cur):
             return get_grey_images(prev, cur)
 
@@ -152,8 +158,49 @@ def cut(vertical, horizontal, img):
     return img
 
 
+def compensating_transform(original, new):
+    from numpy.linalg import inv
+    A = np.dot(new[:2, :2], inv(original[:2, :2]))
+    b = np.dot(-A, original[:2, 2:]) + new[:2, 2:]
+    A = inv(A)
+    b = np.dot(-A, b)
+    affine = np.insert(A, [2], b, axis=1)
+    return affine
+
+
+def sum_2_affine(a1, a2):
+    A1, b1 = a1[:2, :2], a1[:2, 2:]
+    A2, b2 = a2[:2, :2], a2[:2, 2:]
+    A = np.dot(A2, A1)
+    b = np.dot(A2, b1) + b2
+    affine = np.insert(A, [2], b, axis=1)
+    return affine
+
+
 def covariance(*series):
     R = np.cov(series)
     return R
 
 
+def get_cov_from_video(video_name):
+    cap, n_frames, fps, prev = video_open(video_name, size=(640, 480))
+    new_size = 640, 480
+    old = []
+    last_affine = ...
+    cumulative_transform = np.insert(np.array([[1, 0], [0, 1]]), [2], [0], axis=1)
+    for i in range(n_frames-1):
+        # read frames
+        ret2, cur = cap.read()
+        cur = cv2.resize(cur, new_size, cv2.INTER_CUBIC)
+        # get affine transform between frames
+        affine = cv2.estimateRigidTransform(prev, cur, False)
+        # Sometimes there is no Affine transform between frames, so we use the last
+        if not np.all(affine):
+            affine = last_affine
+        last_affine = affine
+        # Accumulated frame to frame original transform
+        cumulative_transform = sum_2_affine(cumulative_transform, affine)
+        # save original affine for comparing with stabilized
+        old.append(cumulative_transform)
+    cov = covariance(*get_params_from_trajectory(old))
+    return cov
