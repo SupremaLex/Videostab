@@ -62,7 +62,7 @@ def tracking(track_len=10, detect_interval=5):
                     cv2.circle(vis, (x, y), 2, (0, 0, 0), -1)
                 self.tracks = new_tracks
                 # draw
-                cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 0, 0))
+                cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 0, 0), thickness=1)
 
             if self.frame_idx % detect_interval == 0:
                 mask = np.zeros_like(cur_grey)
