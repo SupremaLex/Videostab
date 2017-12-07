@@ -92,7 +92,7 @@ def video_open(video_name, size=(640, 480)):
     nframes = np.int(cap.get(7))
     fps = cap.get(5)
     ret, prev = cap.read()
-    prev = cv2.resize(prev, size, cv2.INTER_CUBIC)
+    prev = cv2.resize(prev, size, cv2.INTER_AREA)
     return cap, nframes, fps, prev
 
 
@@ -115,7 +115,7 @@ def show(video_name, size=(640, 480), tracking_mode=False):
 
     for i in range(nframes-2):
         ret, cur = cap.read()
-        cur = cv2.resize(cur, size, cv2.INTER_CUBIC)
+        cur = cv2.resize(cur, size, cv2.INTER_AREA)
         if tracking_mode:
             cur = tracked(prev, cur)
         cv2.imshow('show', cur)
@@ -182,9 +182,9 @@ def covariance(*series):
     return R
 
 
-def get_cov_from_video(video_name):
-    cap, n_frames, fps, prev = video_open(video_name, size=(640, 480))
-    new_size = 640, 480
+def get_cov_from_video(video_name, size):
+    cap, n_frames, fps, prev = video_open(video_name, size)
+    new_size = size
     old = []
     last_affine = ...
     cumulative_transform = np.insert(np.array([[1, 0], [0, 1]]), [2], [0], axis=1)
@@ -199,8 +199,8 @@ def get_cov_from_video(video_name):
             affine = last_affine
         last_affine = affine
         # Accumulated frame to frame original transform
-        cumulative_transform = sum_2_affine(cumulative_transform, affine)
+        #cumulative_transform = sum_2_affine(cumulative_transform, affine)
         # save original affine for comparing with stabilized
-        old.append(cumulative_transform)
+        old.append(affine)
     cov = covariance(*get_params_from_trajectory(old))
     return cov
