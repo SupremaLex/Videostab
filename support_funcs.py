@@ -2,6 +2,7 @@ from matplotlib import pyplot as plt
 import cv2
 import numpy as np
 import matplotlib.patches as mpatches
+from numpy.linalg import inv
 
 
 def get_params_from_trajectory(trajectory):
@@ -159,13 +160,13 @@ def cut(vertical, horizontal, img):
 
 
 def compensating_transform(original, new):
-    from numpy.linalg import inv
     A = np.dot(new[:2, :2], inv(original[:2, :2]))
     b = np.dot(-A, original[:2, 2:]) + new[:2, 2:]
+    a = np.insert(A, [2], b, axis=1)
     A = inv(A)
     b = np.dot(-A, b)
     affine = np.insert(A, [2], b, axis=1)
-    return affine
+    return affine, a
 
 
 def sum_2_affine(a1, a2):
@@ -204,3 +205,13 @@ def get_cov_from_video(video_name, size):
         old.append(affine)
     cov = covariance(*get_params_from_trajectory(old))
     return cov
+
+
+def combine_n_images(*images):
+    result_image = images[0].copy()
+    for image in images[1:]:
+        m1 = result_image > 0
+        m2 = image > 0
+        mask = m2 - m1
+        result_image[~mask] = image[~mask]
+    return result_image
