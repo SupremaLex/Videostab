@@ -1,22 +1,22 @@
 from .kalmanfilter import KalmanFilterND
 from .support_funcs import *
+from .mosaicking import mosaic
 
 
-horizontal_border = 100
-
-
-def warp(frame, affine, size):
+def warp(frame, affine, crop, size):
+    horizontal_border = crop
     frame = cv2.warpAffine(frame, affine, size)
     vert_border = horizontal_border * size[0]//size[1]
-    frame = cut(vert_border, horizontal_border, frame)
+    #frame = cut(vert_border, horizontal_border, frame)
     return frame
 
 
-def video_stab(filename, new_size=(320, 240), tracking_mode=True):
+def video_stab(filename, new_size=(320, 240), crop=25, tracking_mode=True):
     """
     Simple video live stabilization via recursive Kalman Filter
     :param filename: path to video file
     :param new_size: new (width, height) size of video
+    :param crop: crop *crop* number of colons
     :param tracking_mode: set True to show tracking  of key points
     :return: None
     """
@@ -39,17 +39,18 @@ def video_stab(filename, new_size=(320, 240), tracking_mode=True):
     # video writer args
     fourcc = cv2.VideoWriter_fourcc(*'H264')
     fps = cap.get(5)
-    video_stab = filename[:-4] + 'stab.mp4'
-    out = cv2.VideoWriter(video_stab, fourcc, fps, new_size)
+    new_name = filename[:-4] + 'stab.mp4'
+    out = cv2.VideoWriter(new_name, fourcc, fps, new_size)
     cumulative_transform = np.insert(np.array([[1, 0], [0, 1]]), [2], [0], axis=1)
     last_affine = cumulative_transform.copy()
     cumulative_smoothed1 = cumulative_transform.copy()
+    compesating = []
     for i in range(n_frames-1):
         # read frames
         ret2, cur = cap.read()
         cur = cv2.resize(cur, new_size, cv2.INTER_AREA)
         # get affine transform between frames
-        affine = cv2.estimateRigidTransform(prev, cur, False)
+        affine = cv2.estimateRigidTransform(prev, cur, True)
         # Sometimes there is no Affine transform between frames, so we use the last
         if not np.all(affine):
             affine = last_affine
@@ -65,10 +66,10 @@ def video_stab(filename, new_size=(320, 240), tracking_mode=True):
         # create new Affine transform
 
         smoothed_affine_motion = np.float32(x1.reshape(2, 3))
-        affine_motion = compensating_transform(smoothed_affine_motion, cumulative_transform)
-
+        affine_motion, b = compensating_transform(smoothed_affine_motion, cumulative_transform)
+        compesating.append(b)
         # get stabilized frame
-        cur1 = warp(cur, affine_motion, new_size)
+        cur1 = warp(cur, affine_motion, crop, new_size)
         if i > 1 and tracking_mode:
             tr1, tr2 = cur, tracked(prev1, cur1)
         else:
@@ -83,4 +84,5 @@ def video_stab(filename, new_size=(320, 240), tracking_mode=True):
     cap.release()
     out.release()
     cv2.destroyAllWindows()
+    mosaic(new_name, old, compesating, new_size, m=2)
 
